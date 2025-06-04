@@ -16,6 +16,7 @@ import glob
 import subprocess
 import sys
 from dotenv import load_dotenv
+from discord.ext.commands import Context
 
 
 load_dotenv()
@@ -204,7 +205,7 @@ class Voice(commands.Cog):
         else:
             await ctx.send(f"Song '{song_name}' is already in the playlist '{playlist_name}'.")
 
-    @commands.command(brief="Plays a song from a playlist")
+    @commands.command(brief="Plays a song from a playlist. Use -s to shuffle.")
     async def plPlay(self, ctx, playlist_name: str, *args):
         """Plays songs from a playlist. Use -s to shuffle."""
         self.load_playlists()
@@ -396,45 +397,116 @@ class Voice(commands.Cog):
                 closest_match = filename
 
         return closest_match, similarity_score
+    @commands.command(brief="Prints the current song queue (paginated)", aliases=["queue"])
+    async def q(self, ctx: Context):
+        PAGE_SIZE = 50
+        queue = self.queue.copy()
+        total_pages = max(1, (len(queue) + PAGE_SIZE - 1) // PAGE_SIZE)
 
-    @commands.command(brief="Prints the current song queue")
-    async def q(self, ctx):
-        table_header = "```\nQueue Position | Filename\n---------------|---------\n"
-        table_footer = "```"
-        table = table_header
-        for i, filename in enumerate(self.queue):
-            base = os.path.splitext(os.path.basename(filename))[0]
-            table += f"{i:<14} | {base}\n"
-            if len(table) + len(table_footer) > 1900:
-                table += table_footer
-                await ctx.send(table)
-                table = table_header
+        def get_page(page):
+            start = page * PAGE_SIZE
+            end = start + PAGE_SIZE
+            lines = [
+                f"{i+start:<3} | {os.path.splitext(os.path.basename(filename))[0]}"
+                for i, filename in enumerate(queue[start:end])
+            ]
+            content = (
+                f"**Queue (Page {page+1}/{total_pages})**\n"
+                "```Queue | Filename\n-----|---------\n"
+                + "\n".join(lines) + "```"
+            )
+            return content
 
-        table += table_footer
-        await ctx.send(table)
+        page = 0
+        message = await ctx.send(get_page(page))
 
-    @commands.Cog.listener()
-    async def on_voice_state_update(self, member, before, after):
-        # Check if the bot is connected to a voice channel
-        voice_client = discord.utils.get(self.bot.voice_clients, guild=member.guild)
-        if voice_client is None:
+        if total_pages == 1:
             return
 
-        # Check if the bot is in the same voice channel as the user who changed state
-        if before.channel == voice_client.channel:
-            # Check if the voice channel is empty (only the bot remains)
-            if len(before.channel.members) == 1:
-                await voice_client.disconnect()
+        EMOJIS = ["⏮️", "◀️", "▶️", "⏭️"]
+        for emoji in EMOJIS:
+            await message.add_reaction(emoji)
+
+        def check(reaction, user):
+            return (
+                reaction.message.id == message.id
+                and user == ctx.author
+                and str(reaction.emoji) in EMOJIS
+            )
+
+        while True:
+            try:
+                reaction, user = await ctx.bot.wait_for("reaction_add", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                break
+
+            if str(reaction.emoji) == "⏮️":
+                page = 0
+            elif str(reaction.emoji) == "◀️":
+                page = max(0, page - 1)
+            elif str(reaction.emoji) == "▶️":
+                page = min(total_pages - 1, page + 1)
+            elif str(reaction.emoji) == "⏭️":
+                page = total_pages - 1
+
+            await message.edit(content=get_page(page))
+            await message.remove_reaction(reaction.emoji, user)
 
 class CustomHelpCommand(commands.MinimalHelpCommand):
-    async def send_pages(self):
-        destination = self.get_destination()
-        for page in self.paginator.pages:
-            await destination.send(page)
- 
+    async def send_bot_help(self, mapping):
+        ctx = self.context
+        prefix = ctx.clean_prefix
+        embed = discord.Embed(
+            title="Bocchi Bot Help",
+            description=f"Use `{prefix}help <command>` for more info on a command.\n\n**Available Commands:**",
+            color=discord.Color.blurple()
+        )
+        for cog, commands_list in mapping.items():
+            filtered = await self.filter_commands(commands_list, sort=True)
+            if filtered:
+                cog_name = getattr(cog, "qualified_name", "Other")
+                value = "\n".join(f"`{prefix}{c.name}`: {c.brief or c.help or 'No description'}" for c in filtered)
+                embed.add_field(name=cog_name, value=value, inline=False)
+        await ctx.send(embed=embed)
 
+    async def send_command_help(self, command):
+        ctx = self.context
+        prefix = ctx.clean_prefix
+        embed = discord.Embed(
+            title=f"Help: {prefix}{command.qualified_name}",
+            description=command.help or "No description provided.",
+            color=discord.Color.blurple()
+        )
+        if command.aliases:
+            embed.add_field(name="Aliases", value=", ".join(f"`{a}`" for a in command.aliases), inline=False)
+        params = " ".join(f"<{k}>" for k in command.clean_params)
+        embed.add_field(name="Usage", value=f"`{prefix}{command.qualified_name} {params}`", inline=False)
+        await ctx.send(embed=embed)
 
-bot.help_command = commands.DefaultHelpCommand(show_parameter_descriptions=False)
+    async def send_group_help(self, group):
+        await self.send_command_help(group)
+
+    async def send_cog_help(self, cog):
+        ctx = self.context
+        prefix = ctx.clean_prefix
+        embed = discord.Embed(
+            title=f"{cog.qualified_name} Commands",
+            color=discord.Color.blurple()
+        )
+        filtered = await self.filter_commands(cog.get_commands(), sort=True)
+        for command in filtered:
+            embed.add_field(
+                name=f"{prefix}{command.qualified_name}",
+                value=command.brief or command.help or "No description",
+                inline=False
+            )
+        await ctx.send(embed=embed)
+
+    async def send_error_message(self, error):
+        await self.context.send(f":x: {error}")
+
+# Set the custom help command
+bot.help_command = CustomHelpCommand()
 last_updates = {}  # Store last update times
 responsemap = {"plan_to_watch": "plans to watch", "plan_to_read": "plans to read","watching": "is watching", "completed": "has completed", "on-hold": "has put on hold", "dropped": "has dropped"}
 seen_entries = set()  # Store unique entry keys

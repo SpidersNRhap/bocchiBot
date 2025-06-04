@@ -3,3 +3,5 @@ node_modules/
 *.mp3
 .env
 **/playlists.json
+*.cert
+*.key

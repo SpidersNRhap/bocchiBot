@@ -7,8 +7,12 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = 3000;
-const songsDir = path.join(__dirname, '/../../songs');
+const songsDir = path.join(__dirname, '../../songs');
 const playlistsPath = path.join(__dirname, '../../playlists.json');
+
+const https = require('https');
+const sslKey = fs.readFileSync(path.join(__dirname, '../../server.key'));
+const sslCert = fs.readFileSync(path.join(__dirname, '../../server.cert'));
 
 // Ensure the songs directory exists
 if (!fs.existsSync(songsDir)) {
@@ -160,6 +164,6 @@ app.post('/playlists/:playlist/create', express.json(), (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+https.createServer({ key: sslKey, cert: sslCert }, app).listen(PORT, '0.0.0.0', () => {
+    console.log(`HTTPS server running at https://localhost:${PORT}`);
 });

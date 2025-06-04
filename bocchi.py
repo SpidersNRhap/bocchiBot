@@ -24,8 +24,9 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 IP = os.getenv("PUBLIC_IP")
 TRACKED_USERS = json.loads(os.getenv("TRACKED_USERS", "{}"))
 MAL_CLIENT_ID = os.getenv("MAL_CLIENT_ID")
-CHANNEL_ID = os.getenv("CHANNEL_ID")  
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))  
 SMIRK = os.getenv("SMIRK")
+PORT = int(os.getenv("PORT", 3000))  # Default to 3000 if not set
 intents = discord.Intents.all()
 intents.members = True
 intents.messages = True
@@ -92,7 +93,7 @@ async def token(ctx):
         capture_output=True, text=True
     )
     token = proc.stdout.strip()
-    link = f"http://{IP}:3000/?token={token}"  # Replace with your actual IP or domain
+    link = f"https://{IP}:{PORT}/?token={token}"  # Replace with your actual IP or domain
     await ctx.send(f"Access the MP3 uploader here (valid for 10 minutes):\n{link}")
 
 @bot.command(

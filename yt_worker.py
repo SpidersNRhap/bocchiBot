@@ -4,7 +4,7 @@ import sys
 import json
 
 def download_youtube_mp3(url, title=None):
-    output_path = "/home/steve/Desktop/bocchi/songs"
+    output_path = "/songs"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     filename = title if title else '%(title)s'

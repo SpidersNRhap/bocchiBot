@@ -65,16 +65,27 @@ async def on_ready():
     print(f'{bot.user} succesfully logged in!')
 
 
-@bot.command("gif")
+@bot.command(
+    name="gif",
+    brief="Sends a random Bocchi gif.",
+    help="Sends a random Bocchi the Rock gif from a preset list."
+)
 async def gif(ctx):
     r = random.randint(0, len(gifs) - 1)
     await ctx.send(gifs[r])
 
-@bot.command("smirk")
+@bot.command(
+    name="smirk",
+    brief="Sends the smirk emote.",
+)
 async def smirk(ctx):
     await ctx.send(f"<{SMIRK}>")
     
-@bot.command(name="token")
+@bot.command(
+    name="token",
+    brief="Generates a temporary MP3 uploader link.",
+    help="Generates a temporary access token and link for the MP3 uploader web interface. The link is valid for 10 minutes."
+)
 async def token(ctx):
     proc = subprocess.run(
         ["node", "ftp-mp3-uploader/src/token.js"],
@@ -84,8 +95,18 @@ async def token(ctx):
     link = f"http://{IP}:3000/?token={token}"  # Replace with your actual IP or domain
     await ctx.send(f"Access the MP3 uploader here (valid for 10 minutes):\n{link}")
 
-@bot.command(name="download")
-async def download(ctx, youtube_url: str = None, *,title: str = None):
+@bot.command(
+    name="download",
+    aliases=["dl"],
+    brief="Downloads an mp3 file if attached, or a YouTube link with !download [yt link] [song name]",
+    help=(
+        "Downloads an mp3 file from an attached file or from a YouTube link.\n"
+        "Usage:\n"
+        "`!download` (with mp3 file attached) - saves the attached mp3.\n"
+        "`!download <youtube_link> <song name>` - downloads audio from YouTube and saves as <song name>.mp3."
+    )
+)
+async def download(ctx, youtube_url: str = None, *, title: str = None):
     if ctx.message.attachments:
         for attachment in ctx.message.attachments:
             if attachment.filename.endswith('.mp3'):

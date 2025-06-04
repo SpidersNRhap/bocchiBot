@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 Uploader</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload MP3 Files</h1>
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            <input type="text" name="folder" id="folderInput" placeholder="Folder name (optional)" />
+            <input type="file" name="files" id="fileInput" multiple accept="audio/*,.mp3,.wav,.flac,.ogg,.zip,.rar,.7z" />
+            <button type="submit">Upload</button>
+            <div id="statusMessage"></div>
+        </form>
+        <progress id="uploadProgress" value="0" max="100" style="width:100%; display:none;"></progress>
+        <div id="message"></div>
+        <div class="container" style="display: flex; gap: 40px; width: 100%;">
+            <div style="flex:1">
+                <h2>Songs Directory</h2>
+                <div id="songList"></div>
+            </div>
+            <div style="flex:1">
+                <!-- <h2>Playlists</h2> -->
+                <div id="playlistsSection"></div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
+    <script src="upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+songs/
+node_modules/
+*.mp3
+.env
+**/playlists.json

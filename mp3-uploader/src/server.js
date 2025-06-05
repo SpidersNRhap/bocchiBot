@@ -6,7 +6,7 @@ const { verifyAccessToken } = require('./token'); // Adjust path as needed
 const cookieParser = require('cookie-parser');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const songsDir = path.join(__dirname, '../../songs');
 const playlistsPath = path.join(__dirname, '../../playlists.json');
 

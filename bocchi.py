@@ -53,11 +53,11 @@ async def on_ready():
         # Use Popen so the process stays alive
         subprocess.Popen(
             ["node", "server.js"],
-            cwd=os.path.join(os.path.dirname(__file__), "ftp-mp3-uploader", "src"),
+            cwd=os.path.join(os.path.dirname(__file__), "mp3-uploader", "src"),
             # stdout=subprocess.DEVNULL,
             # stderr=subprocess.DEVNULL
         )
-        print("Started uploader server (node ftp-mp3-uploader/src/server.js)")
+        print("Started uploader server (node mp3-uploader/src/server.js)")
     except Exception as e:
         print(f"Failed to start uploader server: {e}")
 
@@ -89,7 +89,7 @@ async def smirk(ctx):
 )
 async def token(ctx):
     proc = subprocess.run(
-        ["node", "ftp-mp3-uploader/src/token.js"],
+        ["node", "mp3-uploader/src/token.js"],
         capture_output=True, text=True
     )
     token = proc.stdout.strip()
@@ -619,5 +619,20 @@ async def check_mal_updates():
         initialized = True  # After first full loop, start sending notifications
         await asyncio.sleep(60*5)
     
+@bot.event
+async def on_voice_state_update(member, before, after):
+    # Only check if the bot is connected to a voice channel
+    voice = discord.utils.get(bot.voice_clients)
+    if not voice or not voice.channel:
+        return
+
+    # If the bot is not in any channel, do nothing
+    channel = voice.channel
+    # Get all non-bot members in the channel
+    non_bot_members = [m for m in channel.members if not m.bot]
+
+    # If only the bot is left, disconnect
+    if len(non_bot_members) == 0:
+        await voice.disconnect()
 
 bot.run(TOKEN)

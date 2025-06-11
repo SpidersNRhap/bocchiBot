@@ -116,7 +116,7 @@ document.getElementById('uploadLink').href = '/?token=' + encodeURIComponent(tok
         </div>
         <div style="flex:1">
             <h2>Song Metadata Editor</h2>
-            <form id="metaForm" style="display:none;">
+            <form id="metaForm" enctype="multipart/form-data" style="display:none;">
                 <div class="meta-form-flex">
                     <div class="meta-fields">
 <div style="grid-column: 1 / span 2; margin-bottom: 8px;">
@@ -128,15 +128,15 @@ document.getElementById('uploadLink').href = '/?token=' + encodeURIComponent(tok
     </div>
 </div>
                         <label for="title">Title:</label>
-                        <input type="text" id="title">
+                        <input type="text" id="title" name="title">
                         <label for="artist">Artist:</label>
-                        <input type="text" id="artist">
+                        <input type="text" id="artist" name="artist">
                         <label for="album">Album:</label>
-                        <input type="text" id="album">
+                        <input type="text" id="album" name="album">
                         <label for="year">Year:</label>
-                        <input type="text" id="year">
+                        <input type="text" id="year" name="year">
                         <label for="genre">Genre:</label>
-                        <input type="text" id="genre">
+                        <input type="text" id="genre" name="genre">
                         <div></div>
                         <button type="submit" style="margin-top:0;">Save</button>
                         <div></div>
@@ -149,7 +149,12 @@ document.getElementById('uploadLink').href = '/?token=' + encodeURIComponent(tok
                             <button type="button" id="deleteArtBtn" title="Delete album art"
                                 style="position:absolute;top:2px;right:2px;z-index:2;background:#f44;color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:bold;display:none;">-</button>
                         </div>
-                        <input type="file" id="albumArtInput" accept="image/*">
+                        <div style="position: relative; width: 100%;">
+    <input type="file" id="albumArtInput" name="albumart" accept="image/*" style="width:100%;height:40px;">
+    <span id="albumArtPlaceholder" style="position:absolute;left:0;top:0;width:100%;height:40px;line-height:40px;background:transparent;border:none;text-align:center;color:#888;pointer-events:none;">
+        No file chosen
+    </span>
+</div>
                         <button type="button" id="deleteFileBtn" >Delete File</button>
                     </div>
                 </div>
@@ -215,11 +220,13 @@ function renderTree(tree, parent, prefix = '') {
     });
 }
 
-async function loadSongList() {
+async function loadSongList(restoreScroll = 0) {
     const songListDiv = document.getElementById('songList');
+    if (!restoreScroll) restoreScroll = songListDiv.scrollTop;
     songListDiv.innerHTML = '';
     const tree = await fetchSongs();
     renderTree(tree, songListDiv);
+    songListDiv.scrollTop = restoreScroll;
 }
 
 async function loadMetadata(fileName) {
@@ -248,6 +255,23 @@ async function loadMetadata(fileName) {
     albumArt.onerror = () => updateDeleteArtBtn(false);
     document.getElementById('artMsg').innerText = '';
     document.getElementById('msg').innerText = '';
+
+    // Always clear and re-setup the file input and placeholder
+    const albumArtInput = trulyClearFileInput('albumArtInput');
+    albumArtInput.addEventListener('change', function() {
+        updateAlbumArtPlaceholder();
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('albumArt').src = e.target.result;
+            pendingDeleteArt = false;
+            updateDeleteArtBtn(true);
+            document.getElementById('artMsg').innerText = "Album art will be saved when you hit Save.";
+        };
+        reader.readAsDataURL(file);
+    });
+    updateAlbumArtPlaceholder();
 }
 
 function updateDeleteArtBtn(hasArt) {
@@ -271,12 +295,11 @@ document.getElementById('deleteArtBtn').onclick = () => {
 document.getElementById('metaForm').onsubmit = async (e) => {
     e.preventDefault();
 
-    // Get the new filename from the box
     const newBase = document.getElementById('filenameBox').value.trim();
     const newFilename = newBase.endsWith('.mp3') ? newBase : newBase + '.mp3';
 
-    // If filename changed, rename the file first
-    if (currentFile !== newFilename) {
+    // Only call rename if the filename actually changed
+    if (currentFile.split('/').pop() !== newFilename) {
         const oldFile = currentFile;
         const res = await fetch(`/rename/${encodeURIComponent(oldFile)}?token=${token}`, {
             method: 'POST',
@@ -296,57 +319,28 @@ document.getElementById('metaForm').onsubmit = async (e) => {
         }
     }
 
+    // If pendingDeleteArt, delete album art first
     if (pendingDeleteArt && currentFile) {
         await fetch(`/albumart/${currentFile}?token=${token}`, {
             method: 'DELETE'
         });
         pendingDeleteArt = false;
     }
-    const body = {
-        title: document.getElementById('title').value,
-        artist: document.getElementById('artist').value,
-        album: document.getElementById('album').value,
-        year: document.getElementById('year').value,
-        genre: document.getElementById('genre').value
-    };
+
+    // Now send all metadata (and album art if present) in one FormData POST
+    const form = document.getElementById('metaForm');
+    const formData = new FormData(form);
+
     const res = await fetch(`/metadata/${currentFile}?token=${token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    document.getElementById('msg').innerText = data.success ? "Saved!" : data.error;
-    if (data.success) loadSongList(); // Refresh list if renamed
-};
-
-document.getElementById('albumArtInput').addEventListener('change', async function() {
-    const fileInput = this;
-    const file = fileInput.files[0];
-    if (!file || !currentFile) return;
-
-    const formData = new FormData();
-    formData.append('albumart', file);
-
-    // Show uploading message
-    document.getElementById('artMsg').innerText = "Uploading...";
-
-    const res = await fetch(`/albumart/${currentFile}?token=${token}`, {
         method: 'POST',
         body: formData
     });
     const data = await res.json();
-
-    if (data.success) {
-        // Force reload the album art image with cache-busting
-        const albumArt = document.getElementById('albumArt');
-        albumArt.src = `/albumart/${currentFile}?token=${token}&${Date.now()}`;
-        document.getElementById('artMsg').innerText = "Album art uploaded!";
-        pendingDeleteArt = false;
-        updateDeleteArtBtn(true);
-    } else {
-        document.getElementById('artMsg').innerText = data.error || "Failed to upload album art.";
-    }
-});
+    document.getElementById('msg').innerText = data.success ? "Saved!" : data.error;
+    const songListDiv = document.getElementById('songList');
+    const scrollPos = songListDiv.scrollTop;
+    if (data.success) loadSongList(scrollPos); // Refresh list if renamed
+};
 
 // New delete file button functionality
 document.getElementById('deleteFileBtn').onclick = async function() {
@@ -364,6 +358,36 @@ document.getElementById('deleteFileBtn').onclick = async function() {
         document.getElementById('msg').innerText = data.error || "Failed to delete file.";
     }
 };
+
+function trulyClearFileInput(inputId) {
+    const oldInput = document.getElementById(inputId);
+    const newInput = oldInput.cloneNode(true);
+    oldInput.parentNode.replaceChild(newInput, oldInput);
+    return newInput;
+}
+
+function updateAlbumArtPlaceholder() {
+    const albumArtInput = document.getElementById('albumArtInput');
+    const placeholder = document.getElementById('albumArtPlaceholder');
+    if (albumArtInput.files && albumArtInput.files.length > 0) {
+        placeholder.textContent = albumArtInput.files[0].name;
+        placeholder.style.color = "#222";
+    } else {
+        placeholder.textContent = "No file chosen";
+        placeholder.style.color = "#888";
+    }
+}
+
+// When file input changes
+// document.getElementById('albumArtInput').addEventListener('change', updateAlbumArtPlaceholder);
+
+// When switching songs (in loadMetadata), after trulyClearFileInput:
+const albumArtInput = trulyClearFileInput('albumArtInput');
+albumArtInput.addEventListener('change', function() {
+    updateAlbumArtPlaceholder();
+    // ...your existing FileReader logic...
+});
+updateAlbumArtPlaceholder();
 
 loadSongList();
     </script>

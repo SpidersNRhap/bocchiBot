@@ -76,8 +76,27 @@ app.post('/upload', upload.array('files'), async (req, res) => {
         return res.status(400).json({ message: 'No files uploaded.' });
     }
 
-    // For each uploaded file, trigger metadata update
-    for (const file of req.files) {
+    // Filter out non-audio files
+    const audioFiles = req.files.filter(file => {
+        // Accept only audio/* mimetypes or .mp3/.wav/.flac extensions
+        const isAudio = file.mimetype.startsWith('audio/');
+        const ext = path.extname(file.originalname).toLowerCase();
+        const allowedExt = ['.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a'];
+        if (!isAudio && !allowedExt.includes(ext)) {
+            console.log(`[UPLOAD] Skipping non-audio file: ${file.originalname} (${file.mimetype})`);
+            // Optionally, delete the uploaded non-audio file from disk:
+            fs.unlinkSync(file.path);
+            return false;
+        }
+        return true;
+    });
+
+    if (audioFiles.length === 0) {
+        return res.status(400).json({ message: 'No audio files uploaded.' });
+    }
+
+    // For each uploaded audio file, trigger metadata update
+    for (const file of audioFiles) {
         // Determine folder and filename
         const relPath = path.relative(songsDir, file.path);
         let folder = path.dirname(relPath);
@@ -143,7 +162,7 @@ app.post('/upload', upload.array('files'), async (req, res) => {
         }
     }
 
-    res.status(200).json({ message: 'Files uploaded successfully.' });
+    res.status(200).json({ message: 'Audio files uploaded successfully.' });
 });
 
 // List songs and folders
@@ -324,8 +343,8 @@ app.get('/metadata/:folder?/:filename', async (req, res) => {
 });
 
 // Update metadata for a song
-app.post('/metadata/:folder?/:filename', express.json(), async (req, res) => {
-    console.log('[SPOTIFY] /metadata endpoint HIT');
+const metaUpload = multer();
+app.post('/metadata/:folder?/:filename', metaUpload.single('albumart'), async (req, res) => {
     let { folder, filename } = req.params;
     if (!filename) {
         filename = folder;
@@ -337,61 +356,33 @@ app.post('/metadata/:folder?/:filename', express.json(), async (req, res) => {
     }
     const filePath = path.join(songsDir, folder || '', filename);
 
-    let { title, artist, album, year, genre } = req.body;
-    let imageBuffer = null;
+    // Build tags directly from form
+    let tags = {
+        title: req.body.title || '',
+        artist: req.body.artist || '',
+        album: req.body.album || '',
+        year: req.body.year || '',
+        genre: req.body.genre || ''
+    };
 
-    console.log('[SPOTIFY] Incoming metadata POST:', req.body);
-
-    // Treat empty strings as missing
-    if (!title?.trim() || !artist?.trim() || !album?.trim() || !year?.trim()) {
-        let query = title || filename.replace(/\.mp3$/i, '');
-        if (artist) query += ` ${artist}`;
-        console.log(`[SPOTIFY] Fetching metadata for query: "${query}" (missing fields: ${[
-            !title && 'title',
-            !artist && 'artist',
-            !album && 'album',
-            !year && 'year'
-        ].filter(Boolean).join(', ')})`);
-        const spotifyMeta = await fetchSpotifyMetadata(query);
-
-        console.log('[SPOTIFY] Received from Spotify:', spotifyMeta);
-
-        title = title || spotifyMeta.title;
-        artist = artist || spotifyMeta.artist;
-        album = album || spotifyMeta.album;
-        year = year || spotifyMeta.year;
-        genre = genre || spotifyMeta.genre;
-
-        // Fetch album art if available
-        if (spotifyMeta.albumArtUrl) {
-            try {
-                console.log(`[SPOTIFY] Fetching album art from: ${spotifyMeta.albumArtUrl}`);
-                const imgRes = await axios.get(spotifyMeta.albumArtUrl, { responseType: 'arraybuffer' });
-                imageBuffer = Buffer.from(imgRes.data, 'binary');
-                console.log('[SPOTIFY] Album art fetched successfully.');
-            } catch (e) {
-                console.error('[SPOTIFY] Failed to fetch album art image:', e);
-            }
-        }
-    }
-
-    const tags = { title, artist, album, year, genre };
-    if (imageBuffer) {
+    if (req.file) {
         tags.image = {
-            mime: 'image/jpeg',
+            mime: req.file.mimetype,
             type: { id: 3, name: 'front cover' },
             description: 'Cover',
-            imageBuffer
+            imageBuffer: req.file.buffer
         };
     }
 
-    console.log('[SPOTIFY] Writing tags to file:', filePath, tags);
+    console.log('[METADATA] filePath:', filePath);
+    console.log('[METADATA] tags:', tags);
 
     NodeID3.update(tags, filePath, (err) => {
         if (err) {
-            console.error('[SPOTIFY] Failed to update metadata:', err);
+            console.error('[METADATA] Failed to update:', err);
             return res.status(500).json({ error: 'Failed to update metadata.' });
         }
+        console.log('[METADATA] Update successful');
         res.json({ success: true, tags });
     });
 });

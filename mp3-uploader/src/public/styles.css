@@ -1,0 +1,134 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 40px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.08);
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+
+input[type="text"],
+input[type="file"],
+button {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #218838;
+}
+
+#statusMessage {
+    margin-top: 10px;
+    text-align: center;
+    color: #d9534f;
+}
+
+#message {
+    margin-top: 20px;
+    text-align: center;
+    color: #5bc0de;
+}
+
+.add-icon-btn {
+    border: none;
+    background: #e0e0e0;
+    color: #333;
+    font-size: 16px;
+    padding: 2px 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-left: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.add-icon-btn:hover {
+    background: #b2f5b2;
+}
+
+.chevron {
+    font-size: 18px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+#playlistsSection ul {
+    padding-left: 18px;
+    margin: 0;
+}
+
+#playlistsSection li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    padding: 2px 0;
+    list-style: disc inside;
+    min-height: 28px; /* Ensures alignment with add/remove buttons */
+}
+
+#playlistsSection li span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.remove-tiny-btn {
+    border: none;
+    background: transparent;
+    color: #d9534f;
+    font-size: 16px;
+    padding: 0 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-left: 6px;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.2s;
+    vertical-align: middle;
+}
+
+.remove-tiny-btn:hover {
+    background: #ffeaea;
+}
+
+#uploadForm {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+}

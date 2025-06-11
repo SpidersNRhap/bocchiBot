@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 Uploader</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav>
+        <a id="metaLink" href="#">Metadata Editor</a>
+    </nav>
+    <script>
+    function getTokenFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('token') || '';
+    }
+    const token = getTokenFromUrl();
+    document.getElementById('metaLink').href = '/metadata.html?token=' + encodeURIComponent(token);
+    </script>
+    <div class="container">
+        <div style="display: flex; gap: 40px; width: 100%;">
+            <!-- Songs Directory -->
+            <div style="flex:1; min-width: 260px;">
+                <h2>Songs Directory</h2>
+                <div id="songList" style="height: 70vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; background: #fafbfc; padding: 12px;"></div>
+            </div>
+            <!-- Playlists + Uploader -->
+            <div style="flex:1; display: flex; flex-direction: column; min-width: 320px;">
+                <h2>Playlists</h2>
+                <div id="playlistsSection" style="flex:1; min-height: 200px; max-height: 55vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; background: #fafbfc; padding: 12px; margin-bottom: 24px;"></div>
+                <h2>Upload MP3 Files</h2>
+                <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data"
+                    style="display: flex; align-items: center; gap: 12px; font-size: 0.95em; margin: 0; padding: 0;">
+                    <input type="text" name="folder" id="folderInput" placeholder="Folder name (optional)" style="width: 140px; padding: 4px 8px;">
+                    <input type="file" name="files" id="fileInput" multiple accept="audio/*,.mp3,.wav,.flac,.ogg,.zip,.rar,.7z" style="padding: 4px 0;">
+                    <button type="submit" style="padding: 4px 14px;">Upload</button>
+                    <div id="statusMessage" style="margin-left: 10px;"></div>
+                </form>
+                <progress id="uploadProgress" value="0" max="100" style="width:100%; display:none; margin-bottom: 8px;"></progress>
+                <div id="message"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Example navigation -->
+
+    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
+    <script src="upload.js"></script>
+</body>
+</html>

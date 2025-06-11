@@ -1,0 +1,10 @@
+songs/
+node_modules/
+*.mp3
+.env
+**/playlists.json
+*.cert
+*.key
+**/genmetadata.py
+**/clean_filenames.py
+spaceship_credentials.ini
